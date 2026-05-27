@@ -17,16 +17,25 @@
 # coding=utf8
 
 from configparser import ConfigParser
+from enum import Enum
+from dotenv import load_dotenv
+import os
 
 
-def get_config(filename='database.ini', section='postgresql'):
-    parser = ConfigParser()
-    parser.read(filename)
-    db = {}
-    if parser.has_section(section):
-        params = parser.items(section)
-        for param in params:
-            db[param[0]] = param[1]
-    else:
-        raise Exception(f'Section {section} not found in the {filename}')
-    return db
+class Privilege(Enum):
+    ASK = "can_ask"
+    TEACH = "can_teach"
+    REMOVE = "can_remove"
+    MODERATE = "can_moderate"
+    ADMIN = "can_admin"
+    
+
+
+def get_db_config():
+    load_dotenv()
+    return {
+        "host": os.getenv("DB_HOST"),
+        "database": os.getenv("DB_NAME"),
+        "user": os.getenv("DB_USER"),
+        "password": os.getenv("DB_PASSWORD")
+        }
