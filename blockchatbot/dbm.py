@@ -28,12 +28,12 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import psycopg2
-from .utils import get_config
+from .utils import get_db_config
 
 
 class DatabaseManager:
     def __init__(self):
-        self.config = get_config()
+        self.config = get_db_config()
     
     async def _connect(self) -> psycopg2.extensions.connection:
         return psycopg2.connect(**self.config)
@@ -54,12 +54,34 @@ class DatabaseManager:
             cursor.execute(statement, parameters)
             return cursor.fetchall()
     
-    async def add_user(self, tgid: int):
-        await self._execute("INSERT INTO users (tgid) "
-                            "VALUES (%s) RETURNING id;", (tgid,))
+    async def add_user(self, tgid: int) -> int:
+        return (await self._select("INSERT INTO users (tgid) "
+                            "VALUES (%s) RETURNING id;", (tgid,)))[0][0]
+    
+    async def check_registered(self, tgid: int) -> bool:
+        return bool(await self._select("SELECT * FROM users WHERE tgid = %s",
+                                   (tgid,)))
     
     async def remove_user(self, tgid: int):
         await self._execute("DELETE FROM users WHERE tgid = %s", (tgid,))
+    
+    async def ban_user(self, tgid: int):
+        await self._execute("UPDATE users SET "
+                            "can_ask = true,"
+                            "can_teach = false,"
+                            "can_remove = false,"
+                            "can_moderate = false,"
+                            "can_admin = false "
+                            "WHERE tgid = %s", (tgid,))
+    
+    async def hard_ban_user(self, tgid: int):
+        await self._execute("UPDATE users SET "
+                            "can_ask = false,"
+                            "can_teach = false,"
+                            "can_remove = false,"
+                            "can_moderate = false,"
+                            "can_admin = false "
+                            "WHERE tgid = %s", (tgid,))
     
     async def info_user(self, tgid: int):
         data = (await self._select("SELECT * FROM users WHERE tgid = %s",
