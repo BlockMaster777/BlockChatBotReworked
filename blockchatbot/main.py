@@ -17,9 +17,9 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import aiogram as aio
+from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
-from blockchatbot.utils import Privilege
 import blockchatbot.logic as lg
 import asyncio
 import logging
@@ -44,10 +44,23 @@ def auto_register(func):
     return wrapper
 
 
+async def ban_user(message: Message, tgid: int):
+    if await lg.can_ban_user(message.from_user.id, tgid):
+        await lg.dbm.ban_user(tgid)
+        await message.reply("💥 **BAN!**")
+    else:
+        await message.reply("⚠️ Cant ban user")
+
+
 @dp.message(CommandStart())
 async def start_handler(message: Message):
-    await message.reply(f"👋 Hello, {message.from_user.full_name}.\n"
-                         f"I ... AM BLOCK CHATBOT!")
+    await message.reply(f"👋 Hello, {message.from_user.full_name}\\.\n"
+                        f"**I \\.\\.\\. AM BLOCK CHATBOT\\!**\n"
+    f"[Source code](https://github.com/BlockMaster777/BlockChatBotReworked)\n"
+    f"[Creator](https://github.com/BlockMaster777)\n"
+    f"[Bug reports](https://github.com/BlockMaster777/BlockChatBotReworked/issues)\n",
+                        parse_mode=ParseMode.MARKDOWN_V2,
+                        disable_web_page_preview=True)
 
 
 @dp.message(Command("me"))
@@ -66,18 +79,27 @@ async def info_handler(message: Message):
     await message.answer(answer_text)
 
 
-@dp.message(Command("block_ban"))
+@dp.message(Command("light_ban"))
 @auto_register
-async def ban_handler(message: Message):
-    if not message.reply_to_message:
-        await message.reply("💬 Reply to message to ban user")
+async def id_ban_handler(message: Message):
+    if message.reply_to_message:
+        tgid = message.reply_to_message.from_user.id
+        await ban_user(message, tgid)
         return
-    tgid = message.reply_to_message.from_user.id
-    if await lg.can_ban_user(message.from_user.id, tgid):
-        await lg.dbm.ban_user(tgid)
-        await message.reply("💥 BAN!")
-    else:
-        await message.reply("⚠️ Cant ban user")
+    try:
+        ban_id = int(message.text.split()[1])
+    except IndexError:
+        await message.reply("⚠️ No user id provided\n"
+                            "💬 You can reply to message to ban user")
+        return
+    except ValueError:
+        await message.reply("⚠️ Wrong id format")
+        return
+    if not await lg.dbm.check_registered(ban_id):
+        await message.reply("⚠️ ID is not registered")
+        return
+    await ban_user(message, ban_id)
+    
     
 
 async def main():
